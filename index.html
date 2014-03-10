@@ -131,6 +131,26 @@
       </div>
     </div>
   </div>
+
+  <div class="row">
+    <div class="col-lg-6">
+    <div class="panel panel-primary">
+      <div class="panel-heading">Network</div>
+      <div class="panel-body" style="margin:0;padding:0">
+        <div class="container" id="network_eth0" style="width:100%; height:300px; margin:0;padding:0"></div>
+      </div>
+    </div>
+    </div>
+<!--     <div class="col-lg-6">
+      <div class="panel panel-primary">
+        <div class="panel-heading">CPU Load Raspberry Pi</div>
+        <div class="panel-body" style="margin:0;padding:0">
+          <div class="container" id="cpu_usage" style="width:100%; height:300px; margin:0;padding:0"></div>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
   </div>
   <!-- Creo el div donde tendré la gráfica. Le digo que ocupe todo el ancho
        de la pantalla y 400px de alto -->
@@ -288,6 +308,48 @@
     }]
   });
 
+  var chartNetEth0 = new Highcharts.StockChart({
+    chart: {
+      renderTo: 'network_eth0',
+      defaultSeriesType: 'spline'
+    },
+    rangeSelector : {
+      selected : 100
+    },
+    title: {
+      text: 'eth0'
+    },
+    exporting: {
+      enabled: false
+    },
+    xAxis: {
+      type: 'datetime',
+      tickPixelInterval: 150,
+      maxZoom: 20 * 1000
+    },
+    yAxis: {
+      minPadding: 0.2,
+      maxPadding: 0.2,
+      title: {
+        text: 'bytes/s',
+        margin: 10
+      }
+    },
+    series: [{
+      name: 'receive',
+      data: []
+    },{
+      name: 'transmit',
+      data: []
+    }],
+    credits: {
+      enabled: false
+    },
+    legend: {
+      enabled: true
+    }
+  });
+
   var updateToplist = function (toplist) {
     var res = toplist.split("\n");
     var result = "";
@@ -313,6 +375,20 @@
     series.addPoint([time, d]);
   };
 
+  var last_network = null;
+  var last_time = null;
+
+  var updateNetwork = function(time,current,last) {
+    if(current.eth0&&last.eth0) {
+      var delta = Math.round((current.eth0.receive.bytes-last.eth0.receive.bytes)/(time-last_time)*1000);
+      var delta2 = Math.round((current.eth0.transmit.bytes-last.eth0.transmit.bytes)/(time-last_time)*1000);
+      var series = chartNetEth0.series[0];
+      series.addPoint([time, delta]);
+      series = chartNetEth0.series[1];
+      series.addPoint([time, delta2]);
+    }
+  };
+
   socket.on('collected', function(data){
     elapsed_seconds = 0;
     updateToplist(data.toplist);
@@ -328,6 +404,11 @@
     var percentCached = Math.round(data.memcached*100/data.memtotal);
     updateMemory(percentFree,percentUsed,percentBuffered,percentCached)
     updateTemp(data.date,data.temp);
+    if(last_network) {
+      updateNetwork(data.date,data.network,last_network);
+    }
+    last_network = data.network;
+    last_time = data.date;
   });
 
   // delay timer

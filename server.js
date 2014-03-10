@@ -95,8 +95,39 @@ function checkTemp(callback) {
   });
 }
 
+var regexp = /\s*(.+)\:\s+(\d+)\s+(\d+)\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+)\s+(\d+)/;
+
+function checkNetwork(callback) {
+  fs.readFile('/proc/net/dev',function(err,data){
+    if(err) {
+      callback(err);
+    } else {
+      var txt = data.toString();
+      var lines = txt.split("\n");
+      var retval = {};
+      for(var c=3;c<lines.length;c++) {
+        var line = lines[c];
+        var match = line.match(regexp);
+        if(match) {
+          retval[match[1]] = {
+            receive: {
+              bytes: match[2],
+              packets: match[3]
+            },
+            transmit: {
+              bytes: match[4],
+              packets: match[5]
+            }
+          };
+        }
+      }
+      callback(null,{network:retval});
+    }
+  });
+}
+
 function collectInfo(callback) {
-  async.reduce([checkTemp,checkMem,checkCpuUsage,checkTopList],{},function(memo,item,next){
+  async.reduce([checkTemp,checkMem,checkCpuUsage,checkTopList,checkNetwork],{},function(memo,item,next){
     item(function(err,data){
       next(err,mergeOptions(memo,data));
     })
