@@ -63,6 +63,28 @@
             </a>
           </li>
         </ul>
+        <ul class="nav navbar-nav navbar-right">
+          <li>
+            <a><strong>Last:</strong>
+              <span id="cronometro"></span>
+            </a>
+          </li>
+          <li class="dropdown">
+            <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+              Change Interval (<span id="current-interval">5sg</span>) <b class="caret"></b>
+            </a>
+            <ul class="dropdown-menu">
+              <li><a href="javascript:changeInterval('1s',1000)">1 s</a></li>
+              <li><a href="javascript:changeInterval('2s',2*1000)">2 s</a></li>
+              <li><a href="javascript:changeInterval('5s',5*1000)">5 s</a></li>
+              <li><a href="javascript:changeInterval('10s',10*1000)">10 s</a></li>
+              <li><a href="javascript:changeInterval('30s',30*1000)">30 s</a></li>
+              <li class="divider"></li>
+              <li><a href="javascript:changeInterval('1m',60*1000)">1 min</a></li>
+              <li><a href="javascript:changeInterval('5m',5*60*1000)">5 min</a></li>
+            </ul>
+          </li>
+        </ul>
       </div><!-- /.navbar-collapse -->
     </div><!-- /.container-fluid -->
   </nav>
@@ -139,6 +161,10 @@
   // Creo un WebSocket. ¡Poned la IP de vuestra Raspberry Pi!
   var socket = io.connect('http://'+ location.host);
   // console.log(location.host)
+  window.changeInterval = function(label,time) {
+    socket.emit("changeInterval",time);
+    document.getElementById("current-interval").innerHTML = label;
+  }
   // Creo un nuevo objeto 'Chart'
   var chart, chartCPU, chartMem, memTotal;
   chart = new Highcharts.StockChart({
@@ -288,6 +314,7 @@
   };
 
   socket.on('collected', function(data){
+    elapsed_seconds = 0;
     updateToplist(data.toplist);
     updateCpuUsage(data.date,data.cpuusage);
     document.getElementById("p_hostname").innerHTML="<b>Hostname:</b> "+data.hostname;
@@ -302,6 +329,13 @@
     updateMemory(percentFree,percentUsed,percentBuffered,percentCached)
     updateTemp(data.date,data.temp);
   });
+
+  // delay timer
+  var elapsed_seconds = 0;
+  setInterval(function() {
+    elapsed_seconds = elapsed_seconds + 1;
+    document.getElementById('cronometro').innerHTML = prettyUptime(elapsed_seconds);
+  }, 1000);
   </script>
 </body>
 </html>

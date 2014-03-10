@@ -122,7 +122,8 @@ app.listen(port);
 //Cada X segundos mandaremos a la gráfica un nuevo valor.
 io.sockets.on('connection', function(socket) {
   var address = socket.handshake.address;
-  var timer;
+  var interval = 5000;
+  var closed = false;
 
   console.log("New connection from " + address.address + ":" + address.port);
   connectCounter++;
@@ -130,20 +131,42 @@ io.sockets.on('connection', function(socket) {
   socket.on('disconnect', function() {
     connectCounter--;
     console.log("NUMBER OF CONNECTIONS--: "+connectCounter);
-    // clean up timer
-    if(timer) {
-      clearInterval(timer);
-      timer = null;
-    }
+    closed = true;
   });
 
-  timer = setInterval(function(){
+  var timer = null;
+
+  var launchCollectInfo = function() {
+    timer = null;
+    var init = new Date().getTime();
     collectInfo(function(err,data){
       if(err) {
         console.log("error collecting data", data);
       } else {
-        socket.emit("collected",data);
+        if(!closed) {
+          var delta = (new Date().getTime())-init;
+          // XXX: graph delta time?
+          data.process_delta = delta;
+          socket.emit("collected",data);
+          timer = setTimeout(launchCollectInfo,Math.max(interval-(delta),0));
+        }
       }
-    })
-  }, 5000);
+    });
+  };
+
+  socket.on("changeInterval",function(data){
+    var new_interval = parseInt(data);
+    if(new_interval<1000||new_interval>=60*5*1000) {
+      console.log("Invalid new interval:",data);
+    } else {
+      console.log("change "+address.address + ":" + address.port+" interval to "+new_interval);
+      interval = new_interval;
+      if(timer!=null) {
+        clearTimeout(timer);
+        timer = setTimeout(launchCollectInfo,100);
+      }
+    }
+  });
+
+  timer = setTimeout(launchCollectInfo,1000);
 });
